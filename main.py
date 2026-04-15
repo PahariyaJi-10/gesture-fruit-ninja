@@ -92,10 +92,10 @@ while True:
     speed = math.hypot(x - prev_x, y - prev_y)
 
     # -------- SPAWN --------
-    if not game_over and random.randint(1, 15) == 1:
+    if not game_over and random.randint(1,5) == 1:
         fruits.append({
             "x": random.randint(50, w - 50),
-            "y": h + 50,
+            "y": h - 50,
             "vx": random.randint(-3, 3),
             "vy": random.randint(-18, -12),
             "type": random.choice(["apple", "bomb"])
