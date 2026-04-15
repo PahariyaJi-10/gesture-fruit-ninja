@@ -14,7 +14,6 @@ cap = cv2.VideoCapture(0)
 apple = cv2.imread("assets/apple.png", cv2.IMREAD_UNCHANGED)
 bomb = cv2.imread("assets/bomb.png", cv2.IMREAD_UNCHANGED)
 
-# Resize
 apple = cv2.resize(apple, (80, 80))
 bomb = cv2.resize(bomb, (80, 80))
 
@@ -23,6 +22,7 @@ prev_x, prev_y = 0, 0
 score = 0
 game_over = False
 fruits = []
+explosions = []
 
 # ---------------- DRAW IMAGE FUNCTION ----------------
 def draw_image(frame, img, x, y):
@@ -35,14 +35,13 @@ def draw_image(frame, img, x, y):
 
     roi = frame[y1:y1 + h, x1:x1 + w]
 
-    # Handle transparency
     if img.shape[2] == 4:
         alpha = img[:, :, 3] / 255.0
         for c in range(3):
             roi[:, :, c] = (1 - alpha) * roi[:, :, c] + alpha * img[:, :, c]
     else:
         roi[:] = img
-explosions = []
+
 # ---------------- MAIN LOOP ----------------
 while True:
     success, frame = cap.read()
@@ -63,10 +62,8 @@ while True:
             x = int(handLms.landmark[8].x * w)
             y = int(handLms.landmark[8].y * h)
 
-            # Draw finger
             cv2.circle(frame, (x, y), 10, (0, 255, 0), -1)
 
-            # Draw slice trail
             if prev_x != 0 and prev_y != 0:
                 cv2.line(frame, (prev_x, prev_y), (x, y), (0, 0, 255), 5)
 
@@ -75,11 +72,11 @@ while True:
     # -------- SPEED --------
     speed = math.hypot(x - prev_x, y - prev_y)
 
-    # -------- SPAWN FRUITS --------
+    # -------- SPAWN --------
     if random.randint(1, 20) == 1:
         fruits.append({
             "x": random.randint(50, w - 50),
-            "y": h+50,
+            "y": h + 50,
             "vx": random.randint(-3, 3),
             "vy": random.randint(-18, -12),
             "type": random.choice(["apple", "bomb"])
@@ -89,13 +86,8 @@ while True:
     for fruit in fruits[:]:
         fruit["x"] += fruit["vx"]
         fruit["y"] += fruit["vy"]
-        fruit["vy"] += 0.5  # gravity
-    for exp in explosions[:]:
-     cv2.circle(frame, (int(exp["x"]), int(exp["y"])), int(exp["radius"]), (0, 0, 255), 3)
-    exp["radius"] += 10
+        fruit["vy"] += 0.5
 
-    if exp["radius"] > 100:
-        explosions.remove(exp)
         # DRAW
         if fruit["type"] == "apple":
             draw_image(frame, apple, fruit["x"], fruit["y"])
@@ -110,19 +102,32 @@ while True:
                 score += 1
             else:
                 game_over = True
-                explosions.append({"x": fruit["x"], "y": fruit["y"], "radius": 10})
+                explosions.append({
+                    "x": fruit["x"],
+                    "y": fruit["y"],
+                    "radius": 10
+                })
             fruits.remove(fruit)
 
-        # REMOVE IF OUT
+        # REMOVE OUTSIDE
         if fruit["y"] > h:
             fruits.remove(fruit)
+
+    # -------- EXPLOSION EFFECT --------
+    for exp in explosions[:]:
+        cv2.circle(frame, (int(exp["x"]), int(exp["y"])),
+                   int(exp["radius"]), (0, 0, 255), 3)
+        exp["radius"] += 10
+
+        if exp["radius"] > 100:
+            explosions.remove(exp)
 
     # -------- UI --------
     cv2.putText(frame, f"Score: {score}", (10, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     if game_over:
-        frame[:] = (0, 0, 100)  # red tint
+        frame[:] = (0, 0, 100)
         cv2.putText(frame, "GAME OVER", (w//2 - 150, h//2),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4)
 
