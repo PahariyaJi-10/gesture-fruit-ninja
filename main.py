@@ -27,7 +27,6 @@ if apple is None or bomb is None:
     print("❌ ERROR: Images not found!")
     exit()
 
-# Resize
 apple = cv2.resize(apple, (80, 80))
 bomb = cv2.resize(bomb, (80, 80))
 
@@ -56,9 +55,6 @@ def draw_image(frame, img, x, y):
     else:
         roi[:] = img[:, :, :3]
 
-print("Apple sum:", apple.sum())
-print("Bomb sum:", bomb.sum())
-
 # ---------------- MAIN LOOP ----------------
 while True:
     success, frame = cap.read()
@@ -71,7 +67,7 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb)
 
-    x, y = 0, 0
+    x, y = -100, -100   # default (no hand)
 
     # -------- HAND DETECTION --------
     if results.multi_hand_landmarks:
@@ -90,7 +86,7 @@ while True:
     speed = math.hypot(x - prev_x, y - prev_y)
 
     # -------- SPAWN --------
-    if not game_over and random.randint(1, 5) == 1:
+    if not game_over and random.randint(1, 8) == 1:
         fruits.append({
             "x": random.randint(50, w - 50),
             "y": h - 50,
@@ -113,10 +109,9 @@ while True:
 
         # COLLISION
         dist = math.hypot(fruit["x"] - x, fruit["y"] - y)
-
         elapsed = (cv2.getTickCount() - start_time) / cv2.getTickFrequency()
 
-        if elapsed > 2 and not game_over and dist < 50 and speed > 40:
+        if x != -100 and elapsed > 2 and not game_over and dist < 50 and speed > 40:
             if fruit["type"] == "apple":
                 score += 1
             else:
@@ -154,7 +149,7 @@ while True:
 
     cv2.imshow("Gesture Fruit Ninja", frame)
 
-    # ✅ FIXED BREAK (inside loop)
+    # ✅ CORRECT break position
     if cv2.waitKey(1) & 0xFF == 27:
         break
 
