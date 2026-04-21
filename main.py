@@ -4,9 +4,6 @@ import random
 import math
 import os
 
-# ---------------- TIMER ----------------
-start_time = cv2.getTickCount()
-
 # ---------------- HAND TRACKING ----------------
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(max_num_hands=1)
@@ -17,11 +14,8 @@ cap = cv2.VideoCapture(0)
 # ---------------- LOAD IMAGES ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-apple_path = os.path.join(BASE_DIR, "assets", "apple.png")
-bomb_path = os.path.join(BASE_DIR, "assets", "bomb.png")
-
-apple = cv2.imread(apple_path, cv2.IMREAD_UNCHANGED)
-bomb = cv2.imread(bomb_path, cv2.IMREAD_UNCHANGED)
+apple = cv2.imread(os.path.join(BASE_DIR, "assets", "apple.png"), cv2.IMREAD_UNCHANGED)
+bomb = cv2.imread(os.path.join(BASE_DIR, "assets", "bomb.png"), cv2.IMREAD_UNCHANGED)
 
 if apple is None or bomb is None:
     print("❌ ERROR: Images not found!")
@@ -34,8 +28,11 @@ bomb = cv2.resize(bomb, (80, 80))
 prev_x, prev_y = 0, 0
 score = 0
 game_over = False
+game_started = False
 fruits = []
 explosions = []
+
+start_time = cv2.getTickCount()
 
 # ---------------- DRAW IMAGE ----------------
 def draw_image(frame, img, x, y):
@@ -67,7 +64,7 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb)
 
-    x, y = -100, -100   # default (no hand)
+    x, y = -100, -100  # no hand default
 
     # -------- HAND DETECTION --------
     if results.multi_hand_landmarks:
@@ -85,47 +82,55 @@ while True:
     # -------- SPEED --------
     speed = math.hypot(x - prev_x, y - prev_y)
 
-    # -------- SPAWN --------
-    if not game_over and random.randint(1, 8) == 1:
-        fruits.append({
-            "x": random.randint(50, w - 50),
-            "y": h - 50,
-            "vx": random.randint(-3, 3),
-            "vy": random.randint(-18, -12),
-            "type": random.choice(["apple", "bomb"])
-        })
+    # ================= START SCREEN =================
+    if not game_started:
+        cv2.putText(frame, "Press S to Start", (w//2 - 200, h//2),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
 
-    # -------- UPDATE FRUITS --------
-    for fruit in fruits[:]:
-        fruit["x"] += fruit["vx"]
-        fruit["y"] += fruit["vy"]
-        fruit["vy"] += 0.5
+    # ================= GAME LOGIC =================
+    if game_started and not game_over:
 
-        # DRAW
-        if fruit["type"] == "apple":
-            draw_image(frame, apple, fruit["x"], fruit["y"])
-        else:
-            draw_image(frame, bomb, fruit["x"], fruit["y"])
+        # -------- SPAWN --------
+        if random.randint(1, 8) == 1:
+            fruits.append({
+                "x": random.randint(50, w - 50),
+                "y": h - 50,
+                "vx": random.randint(-3, 3),
+                "vy": random.randint(-18, -12),
+                "type": random.choice(["apple", "bomb"])
+            })
 
-        # COLLISION
-        dist = math.hypot(fruit["x"] - x, fruit["y"] - y)
-        elapsed = (cv2.getTickCount() - start_time) / cv2.getTickFrequency()
+        # -------- UPDATE FRUITS --------
+        for fruit in fruits[:]:
+            fruit["x"] += fruit["vx"]
+            fruit["y"] += fruit["vy"]
+            fruit["vy"] += 0.5
 
-        if x != -100 and elapsed > 2 and not game_over and dist < 50 and speed > 40:
+            # DRAW
             if fruit["type"] == "apple":
-                score += 1
+                draw_image(frame, apple, fruit["x"], fruit["y"])
             else:
-                game_over = True
-                explosions.append({
-                    "x": fruit["x"],
-                    "y": fruit["y"],
-                    "radius": 10
-                })
-            fruits.remove(fruit)
+                draw_image(frame, bomb, fruit["x"], fruit["y"])
 
-        # REMOVE IF OUT
-        if fruit["y"] > h:
-            fruits.remove(fruit)
+            # COLLISION
+            dist = math.hypot(fruit["x"] - x, fruit["y"] - y)
+            elapsed = (cv2.getTickCount() - start_time) / cv2.getTickFrequency()
+
+            if x != -100 and elapsed > 2 and dist < 50 and speed > 40:
+                if fruit["type"] == "apple":
+                    score += 1
+                else:
+                    game_over = True
+                    explosions.append({
+                        "x": fruit["x"],
+                        "y": fruit["y"],
+                        "radius": 10
+                    })
+                fruits.remove(fruit)
+
+            # REMOVE
+            if fruit["y"] > h:
+                fruits.remove(fruit)
 
     # -------- EXPLOSIONS --------
     for exp in explosions[:]:
@@ -144,13 +149,35 @@ while True:
         frame[:] = (0, 0, 100)
         cv2.putText(frame, "GAME OVER", (w//2 - 150, h//2),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4)
+        cv2.putText(frame, "Press R to Restart", (w//2 - 180, h//2 + 80),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     prev_x, prev_y = x, y
 
     cv2.imshow("Gesture Fruit Ninja", frame)
 
-    # ✅ CORRECT break position
-    if cv2.waitKey(1) & 0xFF == 27:
+    # -------- KEY CONTROLS --------
+    key = cv2.waitKey(1) & 0xFF
+
+    # START
+    if key == ord('s'):
+        game_started = True
+        game_over = False
+        score = 0
+        fruits.clear()
+        explosions.clear()
+        start_time = cv2.getTickCount()
+
+    # RESTART
+    if key == ord('r') and game_over:
+        game_over = False
+        score = 0
+        fruits.clear()
+        explosions.clear()
+        start_time = cv2.getTickCount()
+
+    # EXIT
+    if key == 27:
         break
 
 cap.release()
