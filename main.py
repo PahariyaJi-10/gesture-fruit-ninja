@@ -29,8 +29,10 @@ prev_x, prev_y = 0, 0
 score = 0
 game_over = False
 game_started = False
+
 fruits = []
 explosions = []
+slices = []
 
 start_time = cv2.getTickCount()
 
@@ -79,18 +81,18 @@ while True:
 
             mp_draw.draw_landmarks(frame, handLms, mp_hands.HAND_CONNECTIONS)
 
-    # -------- SPEED --------
     speed = math.hypot(x - prev_x, y - prev_y)
+    elapsed = (cv2.getTickCount() - start_time) / cv2.getTickFrequency()
 
     # ================= START SCREEN =================
     if not game_started:
         cv2.putText(frame, "Press S to Start", (w//2 - 200, h//2),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
 
-    # ================= GAME LOGIC =================
+    # ================= GAME =================
     if game_started and not game_over:
 
-        # -------- SPAWN --------
+        # SPAWN
         if random.randint(1, 8) == 1:
             fruits.append({
                 "x": random.randint(50, w - 50),
@@ -100,7 +102,7 @@ while True:
                 "type": random.choice(["apple", "bomb"])
             })
 
-        # -------- UPDATE FRUITS --------
+        # UPDATE
         for fruit in fruits[:]:
             fruit["x"] += fruit["vx"]
             fruit["y"] += fruit["vy"]
@@ -114,11 +116,24 @@ while True:
 
             # COLLISION
             dist = math.hypot(fruit["x"] - x, fruit["y"] - y)
-            elapsed = (cv2.getTickCount() - start_time) / cv2.getTickFrequency()
 
             if x != -100 and elapsed > 2 and dist < 50 and speed > 40:
+
                 if fruit["type"] == "apple":
                     score += 1
+
+                    # ✨ SLICE EFFECT
+                    slices.append({
+                        "particles": [
+                            {
+                                "x": fruit["x"],
+                                "y": fruit["y"],
+                                "vx": random.uniform(-5, 5),
+                                "vy": random.uniform(-5, 5)
+                            } for _ in range(10)
+                        ]
+                    })
+
                 else:
                     game_over = True
                     explosions.append({
@@ -126,11 +141,26 @@ while True:
                         "y": fruit["y"],
                         "radius": 10
                     })
+
                 fruits.remove(fruit)
 
-            # REMOVE
             if fruit["y"] > h:
                 fruits.remove(fruit)
+
+    # -------- SLICE EFFECT --------
+    for s in slices[:]:
+        for p in s["particles"]:
+            p["x"] += p["vx"]
+            p["y"] += p["vy"]
+            p["vy"] += 0.3
+
+            cv2.circle(frame, (int(p["x"]), int(p["y"])), 3, (0, 255, 255), -1)
+
+        if len(s["particles"]) > 0:
+            s["particles"].pop()
+
+        if len(s["particles"]) == 0:
+            slices.remove(s)
 
     # -------- EXPLOSIONS --------
     for exp in explosions[:]:
@@ -156,27 +186,25 @@ while True:
 
     cv2.imshow("Gesture Fruit Ninja", frame)
 
-    # -------- KEY CONTROLS --------
     key = cv2.waitKey(1) & 0xFF
 
-    # START
     if key == ord('s'):
         game_started = True
         game_over = False
         score = 0
         fruits.clear()
         explosions.clear()
+        slices.clear()
         start_time = cv2.getTickCount()
 
-    # RESTART
     if key == ord('r') and game_over:
         game_over = False
         score = 0
         fruits.clear()
         explosions.clear()
+        slices.clear()
         start_time = cv2.getTickCount()
 
-    # EXIT
     if key == 27:
         break
 
