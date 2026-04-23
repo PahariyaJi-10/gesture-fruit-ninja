@@ -3,6 +3,7 @@ import mediapipe as mp
 import random
 import math
 import os
+import winsound   # ✅ SIMPLE SOUND
 
 # ---------------- HAND TRACKING ----------------
 mp_hands = mp.solutions.hands
@@ -66,7 +67,7 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb)
 
-    x, y = -100, -100  # no hand default
+    x, y = -100, -100  # default (no hand)
 
     # -------- HAND DETECTION --------
     if results.multi_hand_landmarks:
@@ -121,8 +122,9 @@ while True:
 
                 if fruit["type"] == "apple":
                     score += 1
+                    winsound.Beep(800, 100)   # 🍎 slice sound
 
-                    # ✨ SLICE EFFECT
+                    # SLICE EFFECT
                     slices.append({
                         "particles": [
                             {
@@ -136,6 +138,8 @@ while True:
 
                 else:
                     game_over = True
+                    winsound.Beep(300, 300)   # 💣 bomb sound
+
                     explosions.append({
                         "x": fruit["x"],
                         "y": fruit["y"],
@@ -153,7 +157,6 @@ while True:
             p["x"] += p["vx"]
             p["y"] += p["vy"]
             p["vy"] += 0.3
-
             cv2.circle(frame, (int(p["x"]), int(p["y"])), 3, (0, 255, 255), -1)
 
         if len(s["particles"]) > 0:
