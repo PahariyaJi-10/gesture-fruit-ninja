@@ -28,13 +28,18 @@ bomb = cv2.resize(bomb, (80, 80))
 # ---------------- GAME VARIABLES ----------------
 prev_x, prev_y = 0, 0
 score = 0
-lives = 3   # ❤️ NEW
+lives = 3
 game_over = False
 game_started = False
 
 fruits = []
 explosions = []
 slices = []
+
+# 🔥 COMBO VARIABLES
+combo = 0
+last_slice_time = 0
+combo_reset_time = 1.0   # seconds
 
 start_time = cv2.getTickCount()
 
@@ -104,7 +109,6 @@ while True:
                 "type": random.choice(["apple", "bomb"])
             })
 
-        # UPDATE
         for fruit in fruits[:]:
             fruit["x"] += fruit["vx"]
             fruit["y"] += fruit["vy"]
@@ -116,14 +120,23 @@ while True:
             else:
                 draw_image(frame, bomb, fruit["x"], fruit["y"])
 
-            # COLLISION
             dist = math.hypot(fruit["x"] - x, fruit["y"] - y)
 
             if x != -100 and elapsed > 2 and dist < 50 and speed > 40:
 
+                current_time = elapsed
+
+                # 🔥 COMBO LOGIC
+                if current_time - last_slice_time < combo_reset_time:
+                    combo += 1
+                else:
+                    combo = 1
+
+                last_slice_time = current_time
+
                 if fruit["type"] == "apple":
-                    score += 1
-                    winsound.Beep(800, 100)
+                    score += combo   # combo multiplier
+                    winsound.Beep(800 + combo*100, 80)
 
                     slices.append({
                         "particles": [
@@ -137,7 +150,8 @@ while True:
                     })
 
                 else:
-                    lives -= 1   # ❤️ LIFE LOST
+                    lives -= 1
+                    combo = 0  # reset combo on bomb
                     winsound.Beep(300, 200)
 
                     explosions.append({
@@ -181,9 +195,13 @@ while True:
     cv2.putText(frame, f"Score: {score}", (10, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    # ❤️ SHOW LIVES
     cv2.putText(frame, f"Lives: {lives}", (10, 80),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    # 🔥 SHOW COMBO
+    if combo > 1:
+        cv2.putText(frame, f"COMBO x{combo}", (w//2 - 120, 100),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3)
 
     if game_over:
         frame[:] = (0, 0, 100)
@@ -202,7 +220,8 @@ while True:
         game_started = True
         game_over = False
         score = 0
-        lives = 3   # ❤️ RESET
+        lives = 3
+        combo = 0
         fruits.clear()
         explosions.clear()
         slices.clear()
@@ -211,7 +230,8 @@ while True:
     if key == ord('r') and game_over:
         game_over = False
         score = 0
-        lives = 3   # ❤️ RESET
+        lives = 3
+        combo = 0
         fruits.clear()
         explosions.clear()
         slices.clear()
