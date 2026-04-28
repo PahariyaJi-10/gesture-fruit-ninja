@@ -28,16 +28,15 @@ bomb = cv2.resize(bomb, (80, 80))
 # ---------------- GAME VARIABLES ----------------
 prev_x, prev_y = 0, 0
 score = 0
-ai_score = 0   # 🤖 AI score
+ai_score = 0
 lives = 3
+
 game_over = False
 game_started = False
 
 fruits = []
-explosions = []
-slices = []
 
-# 🤖 AI POSITION
+# 🤖 AI position
 ai_x, ai_y = 300, 300
 
 start_time = cv2.getTickCount()
@@ -98,7 +97,7 @@ while True:
     # ================= GAME =================
     if game_started and not game_over:
 
-        # SPAWN
+        # -------- SPAWN --------
         if random.randint(1, 8) == 1:
             fruits.append({
                 "x": random.randint(50, w - 50),
@@ -108,6 +107,7 @@ while True:
                 "type": random.choice(["apple", "bomb"])
             })
 
+        # -------- UPDATE FRUITS --------
         for fruit in fruits[:]:
             fruit["x"] += fruit["vx"]
             fruit["y"] += fruit["vy"]
@@ -126,27 +126,44 @@ while True:
 
                 if fruit["type"] == "apple":
                     score += 1
-                    winsound.Beep(800, 100)
+                    winsound.Beep(800, 80)
                 else:
                     lives -= 1
-                    winsound.Beep(300, 200)
+                    winsound.Beep(300, 150)
+
                     if lives <= 0:
                         game_over = True
 
                 fruits.remove(fruit)
                 continue
 
-            # -------- AI LOGIC --------
-            # AI moves towards fruit
-            ai_x += (fruit["x"] - ai_x) * 0.08
-            ai_y += (fruit["y"] - ai_y) * 0.08
-
-            ai_dist = math.hypot(fruit["x"] - ai_x, fruit["y"] - ai_y)
-
-            if ai_dist < 40:
-                if fruit["type"] == "apple":
-                    ai_score += 1
+            # remove if out
+            if fruit["y"] > h:
                 fruits.remove(fruit)
+
+        # -------- SMART AI --------
+        if len(fruits) > 0:
+            target = min(fruits, key=lambda f: math.hypot(f["x"] - ai_x, f["y"] - ai_y))
+
+            ai_speed = 0.18   # 🔥 increase for harder AI
+
+            ai_x += (target["x"] - ai_x) * ai_speed
+            ai_y += (target["y"] - ai_y) * ai_speed
+
+            ai_dist = math.hypot(target["x"] - ai_x, target["y"] - ai_y)
+
+            # AI reaction + randomness
+            if ai_dist < 40 and random.random() > 0.2:
+
+                if target["type"] == "apple":
+                    ai_score += 1
+                else:
+                    # AI sometimes makes mistake
+                    if random.random() < 0.3:
+                        pass  # ignore bomb mostly
+
+                if target in fruits:
+                    fruits.remove(target)
 
     # -------- DRAW AI --------
     cv2.circle(frame, (int(ai_x), int(ai_y)), 12, (255, 0, 0), -1)
@@ -163,6 +180,7 @@ while True:
     cv2.putText(frame, f"Lives: {lives}", (10, 120),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
+    # -------- GAME OVER SCREEN --------
     if game_over:
         frame[:] = (0, 0, 100)
 
@@ -170,6 +188,15 @@ while True:
 
         cv2.putText(frame, result, (w//2 - 150, h//2),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 4)
+
+        cv2.putText(frame, f"You: {score}", (w//2 - 120, h//2 + 80),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        cv2.putText(frame, f"AI: {ai_score}", (w//2 - 120, h//2 + 130),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        cv2.putText(frame, "Press R to Restart", (w//2 - 200, h//2 + 200),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     prev_x, prev_y = x, y
 
