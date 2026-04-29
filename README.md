@@ -99,3 +99,10 @@ python main.py
 
 Divyansh Pahariya
 
+## 📸 Demo
+
+### 🖼️ Gameplay Screenshots
+
+![Gameplay 1](Screenshot%202026-04-28%20115519.png)
+![Gameplay 2](Screenshot%202026-04-29%20111535.png)
+![Gameplay 3](Screenshot%202026-04-29%20111658.png)
